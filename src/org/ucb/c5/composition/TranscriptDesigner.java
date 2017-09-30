@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.Random;
 
 /**
  * This reverse translates a protein sequence to a DNA and chooses an RBS. It
@@ -19,70 +18,54 @@ import java.util.Random;
  */
 public class TranscriptDesigner {
 
-    private Map<Character, String[]> aminoAcidToCodon;
+    private SequenceChooser seqChooser;
     private RBSChooser rbsChooser;  //Delete the 2 to use old algorithm
     private SequenceChecker seqCheck;
 
     public void initiate() throws Exception {
         //Initialize the RBSChooser
         rbsChooser = new RBSChooser();  //Delete the 2 to use old algorithm
+        seqChooser = new SequenceChooser();
         seqCheck = new SequenceChecker();
 
         rbsChooser.initiate();
+        seqChooser.initiate();
         seqCheck.initiate();
 
         //Construct a map between each amino acid and the highest-CAI codon for E coli
-        aminoAcidToCodon = new HashMap<>();
-
-        aminoAcidToCodon.put('A', new String[]{"GCG","GCA","GCC","GCT"});
-        aminoAcidToCodon.put('C', new String[]{"TGC","TGT"});
-        aminoAcidToCodon.put('D', new String[]{"GAT","GAC"});
-        aminoAcidToCodon.put('E', new String[]{"GAA","GAG"});
-        aminoAcidToCodon.put('F', new String[]{"TTC","TTT"});
-        aminoAcidToCodon.put('G', new String[]{"GGT","GGC","GGA","GGG"});
-        aminoAcidToCodon.put('H', new String[]{"CAC","CAT"});
-        aminoAcidToCodon.put('I', new String[]{"ATC","ATT","ATA"});
-        aminoAcidToCodon.put('K', new String[]{"AAA","AAG"});
-        aminoAcidToCodon.put('L', new String[]{"CTG","CTA","CTC","CTT","TTA","TTG"});
-        aminoAcidToCodon.put('M', new String[]{"ATG"});
-        aminoAcidToCodon.put('N', new String[]{"AAC","AAT"});
-        aminoAcidToCodon.put('P', new String[]{"CCG","CCA","CCC","CCT"});
-        aminoAcidToCodon.put('Q', new String[]{"CAG","CAA"});
-        aminoAcidToCodon.put('R', new String[]{"CGT", "CGC","CGA","CGG","AGA","AGG"});
-        aminoAcidToCodon.put('S', new String[]{"TCT","TCC","TCA","TCG","AGC","AGT"});
-        aminoAcidToCodon.put('T', new String[]{"ACC","ACT","ACA","ACG"});
-        aminoAcidToCodon.put('V', new String[]{"GTT","GTC","GTA","GTG"});
-        aminoAcidToCodon.put('W', new String[]{"TGG"});
-        aminoAcidToCodon.put('Y', new String[]{"TAC","TAT"});
     }
 
     public Transcript run(String peptide, Set<RBSOption> ignores) throws Exception {
-        //Choose codons for each amino acid
-        String[] codons = new String[peptide.length()];
-        Random random = new Random();
-        for(int i=0; i<peptide.length(); i++) {
-            char aa = peptide.charAt(i);
-            String[] codon_opt = aminoAcidToCodon.get(aa);
-            int rand = random.nextInt(codon_opt.length);
-            String codon = aminoAcidToCodon.get(aa)[rand];
-            codons[i] = codon;
-        }
+
+//        Random random = new Random();
+//        for(int i=0; i<peptide.length(); i++) {
+//            char aa = peptide.charAt(i);
+//            String[] codon_opt = aminoAcidToCodon.get(aa);
+//            int rand = random.nextInt(codon_opt.length);
+//            String codon = aminoAcidToCodon.get(aa)[rand];
+//            codons[i] = codon;
+//        }
+
+        //Choose best codon for each amino acid
+        String[] codons = seqChooser.run(peptide);
+
         
         //Choose an RBS
         StringBuilder cds = new StringBuilder();
         for(String codon : codons) {
             cds.append(codon);
         }
-        boolean no_forbidden = seqCheck.run(cds.toString());
 
-        RBSOption selectedRBS = null;
-        if(no_forbidden) {
-            selectedRBS = rbsChooser.run(cds.toString(), ignores);
+        RBSOption selectedRBS;
+        selectedRBS = rbsChooser.run(cds.toString(), ignores);
+
+        System.out.println("made it to the rbs + cds check");
+        String total_seq = selectedRBS + cds.toString();
+        boolean done = seqCheck.run(total_seq);
+        if (done) {
+            System.out.println("Woot Woot completed dna seq construction!!!");
         }
-        else {
-            System.out.println("creating new cds");
-            run(peptide,ignores);
-        }
+
         //Construct the Transcript and return it
         Transcript out = new Transcript(selectedRBS, peptide, codons);
         return out;
@@ -92,12 +75,9 @@ public class TranscriptDesigner {
         TranscriptDesigner td = new TranscriptDesigner();
         td.initiate();
         Set<RBSOption> rbs_exclude = new HashSet<>();
-        String peptide = "MLSDTIDTKQQQQQLHVLFIDSYDSFTYNVVRLIEQQTDISPGVNAVHVTTVHSDTFQSMDQLLPLLPLFDAIVVGPGPGNPNNGAQDMGIISELFENANGKLDEVPILGICLGFQAMCLAQGADVSELNTIKHGQVYEMHLNDAARACGLFSGYPDTFKSTRYHSLHVNAEGIDTLLPLCTTEDENGILLMSAQTKNKPWFGVQYHPESCCSELGGLLVSNFLKLSFINNVKTGRWEKKKLNGEFSDILSRLDRTIDRDPIYKVKEKYPKGEDTTYVKQFEVSEDPKLTFEICNIIREEKFVMSSSVISENTGEWSIIALPNSASQVFTHYGAMKKTTVHYWQDSEISYTLLKKCLDGQDSDLPGSLEVIHEDKSQFWITLGKFMENKIIDNHREIPFIGGLVGILGYEIGQYIACGRCNDDENSLVPDAKLVFINNSIVINHKQGKLYCISLDNTFPVALEQSLRDSFVRKKNIKQSLSWPKYLPEEIDFIITMPDKLDYAKAFKKCQDYMHKGDSYEMCLTTQTKVVPSAVIEPWRIFQTLVQRNPAPFSSFFEFKDIIPRQDETPPVLCFLSTSPERFLKWDADTCELRPIKGTVKKGPQMNLAKATRILKTPKEFGENLMILDLIRNDLYELVPDVRVEEFMSVQEYATVYQLVSVVKAHGLTSASKKTRYSGIDVLKHSLPPGSMTGAPKKITVQLLQDKIESKLNKHVNGGARGVYSGVTGYWSVNSNGDWSVNIRCMYSYNGGTSWQLGAGGAITVLSTLDGELEEMYNKLESNLQIFM";
+        // removed M from end of peptide to make it multiple of 3
+        String peptide = "MLSDTIDTKQQQQQLHVLFIDSYDSFTYNVVRLIEQQTDISPGVNAVHVTTVHSDTFQSMDQLLPLLPLFDAIVVGPGPGNPNNGAQDMGIISELFENANGKLDEVPILGICLGFQAMCLAQGADVSELNTIKHGQVYEMHLNDAARACGLFSGYPDTFKSTRYHSLHVNAEGIDTLLPLCTTEDENGILLMSAQTKNKPWFGVQYHPESCCSELGGLLVSNFLKLSFINNVKTGRWEKKKLNGEFSDILSRLDRTIDRDPIYKVKEKYPKGEDTTYVKQFEVSEDPKLTFEICNIIREEKFVMSSSVISENTGEWSIIALPNSASQVFTHYGAMKKTTVHYWQDSEISYTLLKKCLDGQDSDLPGSLEVIHEDKSQFWITLGKFMENKIIDNHREIPFIGGLVGILGYEIGQYIACGRCNDDENSLVPDAKLVFINNSIVINHKQGKLYCISLDNTFPVALEQSLRDSFVRKKNIKQSLSWPKYLPEEIDFIITMPDKLDYAKAFKKCQDYMHKGDSYEMCLTTQTKVVPSAVIEPWRIFQTLVQRNPAPFSSFFEFKDIIPRQDETPPVLCFLSTSPERFLKWDADTCELRPIKGTVKKGPQMNLAKATRILKTPKEFGENLMILDLIRNDLYELVPDVRVEEFMSVQEYATVYQLVSVVKAHGLTSASKKTRYSGIDVLKHSLPPGSMTGAPKKITVQLLQDKIESKLNKHVNGGARGVYSGVTGYWSVNSNGDWSVNIRCMYSYNGGTSWQLGAGGAITVLSTLDGELEEMYNKLESNLQIF";
         td.run(peptide, rbs_exclude);
-//        int num_codons = 0;
-//        for (String[] chars: td.aminoAcidToCodon.values()) {
-//            num_codons += chars.length;
-//        }
-//        System.out.println(num_codons);
+
     }
 }

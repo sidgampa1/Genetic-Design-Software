@@ -59,6 +59,7 @@ public class SequenceChecker {
         if (found.size() != 0) {
             for(String seq: found) {
                 System.out.println("forbidden seq: " + seq);
+                System.out.println("index of fb: " + combined.indexOf(seq));
             }
             return false;
         }
