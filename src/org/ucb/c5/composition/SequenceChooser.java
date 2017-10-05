@@ -19,77 +19,106 @@ import java.util.Random;
  *
  */
 public class SequenceChooser {
-    private Map<Character, String[]> aminoAcidToCodon;
     private List<String> aa_windows;
     private SequenceChecker seqCheck;
+    private AminoAcidToCodon translate;
     
 
     public void initiate() throws Exception {
-        aminoAcidToCodon = new HashMap<>();
         aa_windows = new ArrayList<>();
         seqCheck = new SequenceChecker();
+        translate = new AminoAcidToCodon();
         seqCheck.initiate();
-        
-        aminoAcidToCodon.put('A', new String[]{"GCG", "GCA", "GCC", "GCT"});
-        aminoAcidToCodon.put('C', new String[]{"TGC", "TGT"});
-        aminoAcidToCodon.put('D', new String[]{"GAT", "GAC"});
-        aminoAcidToCodon.put('E', new String[]{"GAA", "GAG"});
-        aminoAcidToCodon.put('F', new String[]{"TTC", "TTT"});
-        aminoAcidToCodon.put('G', new String[]{"GGT", "GGC", "GGA", "GGG"});
-        aminoAcidToCodon.put('H', new String[]{"CAC", "CAT"});
-        aminoAcidToCodon.put('I', new String[]{"ATC", "ATT", "ATA"});
-        aminoAcidToCodon.put('K', new String[]{"AAA", "AAG"});
-        aminoAcidToCodon.put('L', new String[]{"CTG", "CTA", "CTC", "CTT", "TTA", "TTG"});
-        aminoAcidToCodon.put('M', new String[]{"ATG"});
-        aminoAcidToCodon.put('N', new String[]{"AAC", "AAT"});
-        aminoAcidToCodon.put('P', new String[]{"CCG", "CCA", "CCC", "CCT"});
-        aminoAcidToCodon.put('Q', new String[]{"CAG", "CAA"});
-        aminoAcidToCodon.put('R', new String[]{"CGT", "CGC", "CGA", "CGG", "AGA", "AGG"});
-        aminoAcidToCodon.put('S', new String[]{"TCT", "TCC", "TCA", "TCG", "AGC", "AGT"});
-        aminoAcidToCodon.put('T', new String[]{"ACC", "ACT", "ACA", "ACG"});
-        aminoAcidToCodon.put('V', new String[]{"GTT", "GTC", "GTA", "GTG"});
-        aminoAcidToCodon.put('W', new String[]{"TGG"});
-        aminoAcidToCodon.put('Y', new String[]{"TAC", "TAT"});
+        translate.initiate();
     }
+
+    private double GCCheck(String seq) {
+        double GC_content = 0;
+        for (int i = 0; i < seq.length(); i++) {
+            char nuc = seq.charAt(i);
+            if (nuc == 'G' || nuc == 'C') {
+                GC_content += 1;
+            }
+        }
+        return GC_content / seq.length();
+    }
+
+    private boolean isValidGC(String seq) {
+        double GC = GCCheck(seq);
+//        System.out.println("GC content is " + GC);
+        if (GC > 0.50 && GC < 0.60) {
+            System.out.println("GC content is " + GC);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * helper method to create permutations of aa seq
+     * @param aa_window
+     * @return perms = 1000 random, valid (no forbidden seqs) permutations
+     * of dna seqs for aa window
+     * TODO I dont think random enumeration is best, maybe try something else
+     */
+    private String[] getValidPerms(String preamble, String aa_window) {
+        String[] perms = new String[100];
+        Random rand = new Random();
+        int counter = 0;
+        while(counter < 100) {
+            String perm = "";
+            for (int j = 0; j < aa_window.length(); j++) {
+                char aa = aa_window.charAt(j);
+                String[] possible_codons = translate.table.get(aa);
+                int codon_ind = rand.nextInt(possible_codons.length);
+                String codon = possible_codons[codon_ind];
+                perm += codon;
+            }
+
+            String total_perm = preamble + perm;
+            if (seqCheck.run(total_perm)) {
+                perms[counter] = perm;
+                counter++;
+            }
+//            else {
+//                System.out.println("invalid perm");
+//            }
+        }
+        return perms;
+    }
+
 
     public String[] run(String peptide) {
         String[] codons = new String[peptide.length()];
-
-        // add sliding windows in peptide seq
-        // TODO this wont work for peptide length that's not a multiple of 3
+        /**
+         * for each window of 3 aa:
+         *  grab preamble + 3 aa of interest + 6 aa downstream
+         *  construct 1000 permutations of nucs with aa seq (preamble already chosen)
+         *  throw out forbidden seq permutations, choose best from rest
+         **/
+        String preamble = "";
         for (int i = 0; i < peptide.length(); i += 3) {
-            aa_windows.add(peptide.substring(i, i+3));
+            String target_aas = peptide.substring(i, i + 3);
+            int downstream_start = i + 3;
+            int downstream_end = i+ 9;
+            if (downstream_end >= peptide.length()) {
+                downstream_end = peptide.length();
+            }
+
+            String aa_sub_window = target_aas + peptide.substring(downstream_start, downstream_end);
+            String[] dna_perms = getValidPerms(preamble, aa_sub_window);
+
+            // TODO create weighting system to score perms (not just choosing first perm)
+            String best_perm = dna_perms[0];
+            preamble += best_perm.substring(0,9);
+            System.out.println("Found a 3 codon seq for index" + i);
         }
 
-        // for each window of 3 aa, grab best codons (no fb), retain middle one
-        int codon_count = 0;
-        for (String aas: aa_windows) {
-            int codon_index = 0;
-            String dna_window = "";
-            Random rand = new Random();
-            boolean done = false;
-            while(!done) {
-                dna_window = "";
-                for (int j = 0; j < 3; j++) {
-                    char aa = aas.charAt(j);
-                    int index = rand.nextInt(aminoAcidToCodon.get(aa).length);
-                    dna_window += (aminoAcidToCodon.get(aa)[index]);
-                }
-                System.out.println(dna_window);
-                done = seqCheck.run(dna_window);
-            }
-             // if seq w/ no fb found, add middle codon to codon list
-            /** error here if peptide length not multiple of 3
-             * the last dna window will be < 3  because of 3 aa windows
-             * TODO fix potentional error
-            **/
-
-            if (dna_window.length() == 9){
-                System.out.println("Success, new codon match found!");
-                codon_count += 1;
-                System.out.println("codon count: " + codon_count);
-                codons[codon_index] = dna_window.substring(3,6);
-            }
+        // turn complete dna seq into codon list to return
+        int counter = 0;
+        for (int j = 0; j < preamble.length(); j += 3) {
+            String codon = preamble.substring(j, j + 3);
+            codons[counter] = codon;
+            counter++;
         }
 
         return codons;

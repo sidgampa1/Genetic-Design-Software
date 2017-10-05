@@ -50,19 +50,20 @@ public class SequenceChecker {
         String rc = revcomp.run(dnaseq);
         String combined = dnaseq + "x" + rc;
         combined = combined.toUpperCase();
-        List<String> found = new ArrayList<>();
+       // List<String> found = new ArrayList<>();
         for(String site : forbidden) {
             if(combined.contains(site)) {
-                found.add(site);
+//                found.add(site);
+                return false;
             }
         }
-        if (found.size() != 0) {
-            for(String seq: found) {
-                System.out.println("forbidden seq: " + seq);
-                System.out.println("index of fb: " + combined.indexOf(seq));
-            }
-            return false;
-        }
+//        if (found.size() != 0) {
+//            for(String seq: found) {
+//                System.out.println("forbidden seq: " + seq);
+//                System.out.println("index of fb: " + combined.indexOf(seq));
+//            }
+//            return false;
+//        }
 
         
         return true;

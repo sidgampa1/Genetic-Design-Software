@@ -40,9 +40,9 @@ public class TranscriptDesigner {
 //        Random random = new Random();
 //        for(int i=0; i<peptide.length(); i++) {
 //            char aa = peptide.charAt(i);
-//            String[] codon_opt = aminoAcidToCodon.get(aa);
+//            String[] codon_opt = table.get(aa);
 //            int rand = random.nextInt(codon_opt.length);
-//            String codon = aminoAcidToCodon.get(aa)[rand];
+//            String codon = table.get(aa)[rand];
 //            codons[i] = codon;
 //        }
 
@@ -57,13 +57,22 @@ public class TranscriptDesigner {
         }
 
         RBSOption selectedRBS;
-        selectedRBS = rbsChooser.run(cds.toString(), ignores);
+        selectedRBS = rbsChooser.run(cds.toString(), peptide, ignores);
 
         System.out.println("made it to the rbs + cds check");
-        String total_seq = selectedRBS + cds.toString();
+        if (seqCheck.run(cds.toString())) {
+            System.out.println("cds is forbidden seq free!");
+        }
+        String total_seq = selectedRBS.getRbs() + 'x' + cds.toString();
         boolean done = seqCheck.run(total_seq);
         if (done) {
             System.out.println("Woot Woot completed dna seq construction!!!");
+            System.out.println("peptide: " + peptide);
+            System.out.println("rbs + cds: " + total_seq);
+
+        }
+        else {
+            System.out.println("rbs + cds check failed");
         }
 
         //Construct the Transcript and return it
@@ -72,12 +81,15 @@ public class TranscriptDesigner {
     }
 
     public static void main(String[] args) throws Exception {
+        final long startTime = System.currentTimeMillis();
         TranscriptDesigner td = new TranscriptDesigner();
         td.initiate();
         Set<RBSOption> rbs_exclude = new HashSet<>();
         // removed M from end of peptide to make it multiple of 3
         String peptide = "MLSDTIDTKQQQQQLHVLFIDSYDSFTYNVVRLIEQQTDISPGVNAVHVTTVHSDTFQSMDQLLPLLPLFDAIVVGPGPGNPNNGAQDMGIISELFENANGKLDEVPILGICLGFQAMCLAQGADVSELNTIKHGQVYEMHLNDAARACGLFSGYPDTFKSTRYHSLHVNAEGIDTLLPLCTTEDENGILLMSAQTKNKPWFGVQYHPESCCSELGGLLVSNFLKLSFINNVKTGRWEKKKLNGEFSDILSRLDRTIDRDPIYKVKEKYPKGEDTTYVKQFEVSEDPKLTFEICNIIREEKFVMSSSVISENTGEWSIIALPNSASQVFTHYGAMKKTTVHYWQDSEISYTLLKKCLDGQDSDLPGSLEVIHEDKSQFWITLGKFMENKIIDNHREIPFIGGLVGILGYEIGQYIACGRCNDDENSLVPDAKLVFINNSIVINHKQGKLYCISLDNTFPVALEQSLRDSFVRKKNIKQSLSWPKYLPEEIDFIITMPDKLDYAKAFKKCQDYMHKGDSYEMCLTTQTKVVPSAVIEPWRIFQTLVQRNPAPFSSFFEFKDIIPRQDETPPVLCFLSTSPERFLKWDADTCELRPIKGTVKKGPQMNLAKATRILKTPKEFGENLMILDLIRNDLYELVPDVRVEEFMSVQEYATVYQLVSVVKAHGLTSASKKTRYSGIDVLKHSLPPGSMTGAPKKITVQLLQDKIESKLNKHVNGGARGVYSGVTGYWSVNSNGDWSVNIRCMYSYNGGTSWQLGAGGAITVLSTLDGELEEMYNKLESNLQIF";
         td.run(peptide, rbs_exclude);
+        final long endTime = System.currentTimeMillis();
+        System.out.println("total runtime: " + (endTime - startTime));
 
     }
 }
