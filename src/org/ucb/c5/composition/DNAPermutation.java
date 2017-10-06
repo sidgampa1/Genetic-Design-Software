@@ -1,10 +1,11 @@
 package org.ucb.c5.composition;
 
-public class DNAPermutation implements Comparable<DNAPermutation>{
-    private String seq;
-    private double GC_content;
-    private double hairpin;
-    private int length;
+import java.util.Comparator;
+
+public class DNAPermutation{
+    private final String seq;
+    private final double GC_content;
+    private final double hairpin;
 
     public DNAPermutation(String seq, double GC_content, double hairpin) {
         this.seq = seq;
@@ -12,15 +13,6 @@ public class DNAPermutation implements Comparable<DNAPermutation>{
         this.hairpin = hairpin;
     }
 
-    public DNAPermutation(String seq, double GC_content) {
-        this.seq = seq;
-        this.GC_content = GC_content;
-        this.length = seq.length();
-    }
-
-    public DNAPermutation(String seq) {
-        this.seq = seq;
-    }
 
     public String getSeq() {
         return seq;
@@ -34,20 +26,6 @@ public class DNAPermutation implements Comparable<DNAPermutation>{
         return hairpin;
     }
 
-    public int getLength() {
-        return length;
-    }
-
-    @Override
-    public int compareTo(DNAPermutation p) {
-        if (this.GC_content > p.getGC_content()) {
-            return 1;
-        }
-        else if (p.getGC_content() > this.GC_content) {
-            return 1;
-        }
-        return 0;
-    }
 
     @Override
     public boolean equals(Object o) {
@@ -58,7 +36,6 @@ public class DNAPermutation implements Comparable<DNAPermutation>{
 
         if (Double.compare(that.GC_content, GC_content) != 0) return false;
         if (Double.compare(that.hairpin, hairpin) != 0) return false;
-        if (length != that.length) return false;
         return seq != null ? seq.equals(that.seq) : that.seq == null;
     }
 
@@ -71,7 +48,6 @@ public class DNAPermutation implements Comparable<DNAPermutation>{
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         temp = Double.doubleToLongBits(hairpin);
         result = 31 * result + (int) (temp ^ (temp >>> 32));
-        result = 31 * result + length;
         return result;
     }
 
@@ -81,7 +57,6 @@ public class DNAPermutation implements Comparable<DNAPermutation>{
                 "seq='" + seq + '\'' +
                 ", GC_content=" + GC_content +
                 ", hairpin=" + hairpin +
-                ", length=" + length +
                 '}';
     }
 }

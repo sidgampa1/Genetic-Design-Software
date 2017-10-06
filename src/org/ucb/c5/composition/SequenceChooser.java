@@ -71,6 +71,7 @@ public class SequenceChooser {
         List<DNAPermutation> perms = new ArrayList<>();
         Random rand = new Random(100); //seeded to ensure consistency
         int counter = 0;
+        int tot_tried_perms = 0;
         while(counter < num_poss) {
             StringBuilder perm = new StringBuilder();
             for (int j = 0; j < aa_window.length(); j++) {
@@ -84,6 +85,7 @@ public class SequenceChooser {
                 perm.append(codon);
             }
 
+            tot_tried_perms++;
             String perm_seq = perm.toString();
             double perm_GC = GCCheck(perm_seq);
             double perm_hp = hairpin.run(perm_seq);
@@ -99,7 +101,7 @@ public class SequenceChooser {
                 counter++;
 //                System.out.println("perms length is " + perms.size());
             }
-            else if (num_poss < 100 && isFBfree) {
+            else if ((num_poss < 100 || tot_tried_perms > 1000) && isFBfree) {
                 perms.add(good_perm);
                 counter++;
             }
@@ -135,11 +137,35 @@ public class SequenceChooser {
                 downstream_end = peptide.length();
             }
 
+            peptide = peptide.toUpperCase();
             String aa_sub_window = target_aas + peptide.substring(downstream_start, downstream_end);
             System.out.println("created target_aas " + i);
             List<DNAPermutation> dna_perms = getValidPerms(preamble.toString(), aa_sub_window);
             System.out.println("I have a collection of good perms for window " + i);
-            Collections.sort(dna_perms);
+            Collections.sort(dna_perms, new Comparator<DNAPermutation>() {
+                @Override
+                public int compare(DNAPermutation t1, DNAPermutation t2) {
+                    double GC1 = t1.getGC_content();
+                    double GC2 = t2.getGC_content();
+                    double hp1 = t1.getHairpin();
+                    double hp2 = t2.getHairpin();
+
+                    if (hp1 == hp2 && hp1 == 0) {
+                        if (GC1 > GC2)
+                            return 1;
+                        else if (GC2 > GC1) {
+                            return -1;
+                        }
+                    }
+                    else if (hp1 > hp2) {
+                        return -1;
+                    }
+                    else if (hp2 > hp1) {
+                        return 1;
+                    }
+                    return 0;
+                }
+            });
 //            System.out.println("i have a sorted collection of good perms by GC");
 
             // TODO create weighting system to score perms (not just choosing first perm)
