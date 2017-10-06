@@ -3,6 +3,7 @@ package org.ucb.c5.composition;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.ArrayList;
 import org.ucb.c5.composition.model.RBSOption;
 import org.ucb.c5.utils.FileUtils;
@@ -53,54 +54,42 @@ public class RBSChooser {
         String[] gene_lines = gene_data.split("\\r|\\r?\\n");
         String[] rbs_lines = rbs_data.split("\\r|\\r?\\n");
 
-        //check line by line for match between rbs options native genes and ecoli genes list,
+        //parse data for match between rbs options native genes and ecoli genes list,
         //create rbsoption to add to rbss
+        Map<String,String> rbs_info = new HashMap<>();
         for (int i = 0; i < rbs_lines.length; i++) {
-            String rbs_line = rbs_lines[i]; //single line in rbs_options
+            String rbs_line = rbs_lines[i];
             String[] rbs_fields = rbs_line.split("\t");
 
-            for (int j = 0; j < gene_lines.length; j++) {
-                String gene_line = gene_lines[j]; //single line in coli_genes
-                String[] gene_fields = gene_line.split("\t");
+            String src_rbs = rbs_fields[1];
+            String src_name = rbs_fields[0];
+            rbs_info.put(src_name,src_rbs);
 
-                String src_name = gene_fields[1];
-                // match between name of rbs native gene and gene in coli gene list
-                if (src_name.equals(rbs_fields[0])) {
-                    // define rbsoption attributes
-                    String src_desc = gene_fields[0];
-                    String src_rbs = rbs_fields[1];
-                    String src_cds = gene_fields[6];
+        }
 
-                    //translate first 6 aa's from cds
-                    String src_first6aas = translator.run(src_cds.substring(0, 18));
+        for (int j = 0; j < gene_lines.length; j++) {
+            String gene_line = gene_lines[j];
+            String[] gene_fields = gene_line.split("\t");
 
-                    //add rbsoption to rbss (list of rbs option and corresponding native gene cds)
-                    RBSOption rbs_match = new RBSOption(src_name, src_desc, src_rbs, src_cds, src_first6aas);
-                    rbss.add(rbs_match);
-                }
+            String name = gene_fields[1];
 
+            if (rbs_info.containsKey(name)) {
+                String src_desc = gene_fields[0];
+                String src_rbs = rbs_info.get(name);
+                String src_cds = gene_fields[6];
+
+                //translate first 6 aa's from cds
+                String src_first6aas = translator.run(src_cds.substring(0, 18));
+
+                //add rbsoption to rbss (list of rbs option and corresponding native gene cds)
+                RBSOption rbs_match = new RBSOption(name, src_desc, src_rbs, src_cds, src_first6aas);
+                rbss.add(rbs_match);
             }
         }
+
+
     }
 
-    /**
-     * this private method take a peptide and reverse translates it using the hard coded codon table
-     * @param peptide
-     * @return cds - reverse translated dna seq
-     */
-
-//    private String rev_translate(String peptide) {
-//        String cds = "";
-//
-//        // add codons to cds
-//        for(int i=0; i<peptide.length(); i++) {
-//            char aa = peptide.charAt(i);
-//            String codon = translate.table.get(aa);
-//            cds += codon;
-//        }
-//
-//        return cds;
-//    }
 
     /**
      * Provided a protein of sequence 'peptide', this computes the best ribosome
@@ -114,7 +103,6 @@ public class RBSChooser {
      * @throws Exception
      */
     public RBSOption run(String cds, String peptide, Set<RBSOption> ignores) throws Exception {
-        //TODO:  Fill in
         double min_score = Integer.MAX_VALUE; //keeps track of lowest score in rbs options
         RBSOption best_rbs = rbss.get(0); //rbsoption corresponding to lowest score, initialized to first rbs in list
 
@@ -159,31 +147,6 @@ public class RBSChooser {
 
     public static void main(String[] args) throws Exception {
         //Create an example
-//        String peptide = "MLSDTIDTKQQQQQLHVLFIDSYDSFTYNVVRLIEQQTDISPGVNAVHVTTVHSDTFQSMDQLLPLLPLFDAIVVGPGPGNPNNGAQDMGIISELFENANGKLDEVPILGICLGFQAMCLAQGADVSELNTIKHGQVYEMHLNDAARACGLFSGYPDTFKSTRYHSLHVNAEGIDTLLPLCTTEDENGILLMSAQTKNKPWFGVQYHPESCCSELGGLLVSNFLKLSFINNVKTGRWEKKKLNGEFSDILSRLDRTIDRDPIYKVKEKYPKGEDTTYVKQFEVSEDPKLTFEICNIIREEKFVMSSSVISENTGEWSIIALPNSASQVFTHYGAMKKTTVHYWQDSEISYTLLKKCLDGQDSDLPGSLEVIHEDKSQFWITLGKFMENKIIDNHREIPFIGGLVGILGYEIGQYIACGRCNDDENSLVPDAKLVFINNSIVINHKQGKLYCISLDNTFPVALEQSLRDSFVRKKNIKQSLSWPKYLPEEIDFIITMPDKLDYAKAFKKCQDYMHKGDSYEMCLTTQTKVVPSAVIEPWRIFQTLVQRNPAPFSSFFEFKDIIPRQDETPPVLCFLSTSPERFLKWDADTCELRPIKGTVKKGPQMNLAKATRILKTPKEFGENLMILDLIRNDLYELVPDVRVEEFMSVQEYATVYQLVSVVKAHGLTSASKKTRYSGIDVLKHSLPPGSMTGAPKKITVQLLQDKIESKLNKHVNGGARGVYSGVTGYWSVNSNGDWSVNIRCMYSYNGGTSWQLGAGGAITVLSTLDGELEEMYNKLESNLQIFM";
-//        String peptide = "MSQTVHFQGNPVTVANSIPQ";
-//
-//        //Initiate the chooser
-//        RBSChooser chooser = new RBSChooser();
-//        chooser.initiate();
-//
-//        //Make the first choice with an empty Set of ignores
-//        Set<RBSOption> ignores = new HashSet<>();
-//        RBSOption selected1 = chooser.run(peptide, ignores);
-//
-//        //Add the first selection to the list of things to ignore
-//        ignores.add(selected1);
-//
-//        //Choose again with an ignore added
-//        RBSOption selected2 = chooser.run(peptide, ignores);
-//
-//        //Print out the two options, which should be different
-//        System.out.println("Protein starts with:");
-//        System.out.println(peptide.substring(0, 6));
-//        System.out.println();
-//        System.out.println("Selected1:\n");
-//        System.out.println(selected1.toString());
-//        System.out.println();
-//        System.out.println("Selected2:\n");
-//        System.out.println(selected2.toString());
+
     }
 }
