@@ -2,6 +2,7 @@ package org.ucb.c5.composition;
 
 import com.sun.org.apache.xpath.internal.SourceTree;
 import com.sun.xml.internal.bind.v2.TODO;
+import org.ucb.c5.sequtils.HairpinCounter;
 
 import java.util.*;
 
@@ -17,14 +18,17 @@ public class SequenceChooser {
     private List<String> aa_windows;
     private SequenceChecker seqCheck;
     private AminoAcidToCodon translate;
+    private HairpinCounter hairpin;
     
 
     public void initiate() throws Exception {
         aa_windows = new ArrayList<>();
         seqCheck = new SequenceChecker();
         translate = new AminoAcidToCodon();
+        hairpin = new HairpinCounter();
         seqCheck.initiate();
         translate.initiate();
+        hairpin.initiate();
     }
 
     private double GCCheck(String seq) {
@@ -53,14 +57,22 @@ public class SequenceChooser {
      * @param aa_window
      * @return perms = 100 random, valid (no forbidden seqs and good GC content) permutations
      * of dna seqs for aa window
-     * TODO I dont think random enumeration is best, maybe try something else
      */
-    private DNAPermutation[] getValidPerms(String preamble, String aa_window) {
-        DNAPermutation[] perms = new DNAPermutation[100];
+    private List<DNAPermutation> getValidPerms(String preamble, String aa_window) throws Exception{
+        int num_poss = 1;
+        for(int i = 0; i < aa_window.length() && num_poss < 100; i++) {
+            num_poss *= translate.table.get(aa_window.charAt(i)).length;
+            if (num_poss > 100) {
+                num_poss = 100;
+            }
+        }
+        System.out.println("amino acid window is " + aa_window);
+        System.out.println("num possiblities is " + num_poss);
+        List<DNAPermutation> perms = new ArrayList<>();
         Random rand = new Random(100); //seeded to ensure consistency
         int counter = 0;
-        while(counter < 100) {
-            String perm = "";
+        while(counter < num_poss) {
+            StringBuilder perm = new StringBuilder();
             for (int j = 0; j < aa_window.length(); j++) {
                 char aa = aa_window.charAt(j);
                 if (!translate.table.containsKey(aa)) {
@@ -69,14 +81,26 @@ public class SequenceChooser {
                 String[] possible_codons = translate.table.get(aa);
                 int codon_ind = rand.nextInt(possible_codons.length);
                 String codon = possible_codons[codon_ind];
-                perm += codon;
+                perm.append(codon);
             }
 
-            double perm_GC = GCCheck(perm);
-            String total_perm = preamble + perm;
-            if (seqCheck.run(total_perm) && isValidGC(total_perm)) {
-                DNAPermutation good_perm = new DNAPermutation(perm, perm_GC);
-                perms[counter] = good_perm;
+            String perm_seq = perm.toString();
+            double perm_GC = GCCheck(perm_seq);
+            double perm_hp = hairpin.run(perm_seq);
+            String total_perm = preamble + perm_seq;
+            DNAPermutation good_perm = new DNAPermutation(perm_seq, perm_GC, perm_hp);
+
+            boolean isUnique = !perms.contains(good_perm);
+            boolean isFBfree = seqCheck.run(total_perm);
+            boolean isValidGC = isValidGC(total_perm);
+            boolean isGoodHairpin = perm_hp < 30;
+            if (num_poss == 100 && isUnique && isFBfree && isValidGC && isGoodHairpin){
+                perms.add(good_perm);
+                counter++;
+//                System.out.println("perms length is " + perms.size());
+            }
+            else if (num_poss < 100 && isFBfree) {
+                perms.add(good_perm);
                 counter++;
             }
         }
@@ -84,15 +108,15 @@ public class SequenceChooser {
     }
 
 
-    public String[] run(String peptide) {
+    public String[] run(String peptide) throws Exception{
         String[] codons = new String[peptide.length()];
         /**
-         * for each window of 3 aa:
+         * for each window of 3 aa (GeneOptimizer algorithm):
          *  grab preamble + 3 aa of interest + 6 aa downstream
          *  construct 100 permutations of nucs with aa seq (preamble already chosen)
          *  throw out forbidden seq permutations, choose best from rest
          **/
-        String preamble = "";
+        StringBuilder preamble = new StringBuilder();
         for (int i = 0; i < peptide.length(); i += 3) {
             String target_aas;
             int downstream_start = i + 3;
@@ -112,16 +136,19 @@ public class SequenceChooser {
             }
 
             String aa_sub_window = target_aas + peptide.substring(downstream_start, downstream_end);
-            DNAPermutation[] dna_perms = getValidPerms(preamble, aa_sub_window);
-            Arrays.sort(dna_perms);
+            System.out.println("created target_aas " + i);
+            List<DNAPermutation> dna_perms = getValidPerms(preamble.toString(), aa_sub_window);
+            System.out.println("I have a collection of good perms for window " + i);
+            Collections.sort(dna_perms);
+//            System.out.println("i have a sorted collection of good perms by GC");
 
             // TODO create weighting system to score perms (not just choosing first perm)
-            String best_perm = dna_perms[dna_perms.length - 1].getSeq();
-            preamble += best_perm.substring(0,target_aas.length() * 3);
-//            System.out.println("Found a 3 codon seq for index" + i);
+            String best_perm = dna_perms.get(dna_perms.size() - 1).getSeq();
+            preamble.append(best_perm.substring(0,target_aas.length() * 3));
+            System.out.println("Found a 3 codon seq for index" + i);
         }
 
-        System.out.println("GC content of chosen DNA seq: " + GCCheck(preamble));
+        System.out.println("GC content of chosen DNA seq: " + GCCheck(preamble.toString()));
         // turn complete dna seq into codon list to return
         int counter = 0;
         for (int j = 0; j < preamble.length(); j += 3) {
