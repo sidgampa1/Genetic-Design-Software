@@ -79,7 +79,7 @@ public class RBSChooser {
                 String src_cds = gene_fields[6];
 
                 //translate first 6 aa's from cds
-                String src_first6aas = translator.run(src_cds.substring(0, 18));
+                String src_first6aas = translator.run(src_cds.substring(0, 18).toUpperCase());
 
                 //add rbsoption to rbss (list of rbs option and corresponding native gene cds)
                 RBSOption rbs_match = new RBSOption(name, src_desc, src_rbs, src_cds, src_first6aas);
